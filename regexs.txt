@@ -1,0 +1,3 @@
+\d+(?= user)
+
+in progress: (\d+\.\d+)(?=\s*free)
