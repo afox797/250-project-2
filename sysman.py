@@ -5,6 +5,37 @@ import socket
 import sys
 import signal
 from contextlib import redirect_stdout
+from threading import Thread
+from datetime import datetime
+
+
+class MonitorThread(Thread):
+
+    def __init__(self, src_ip, log_addr, log_port):
+        super().__init__()
+        self.src_ip = src_ip
+        self.log_addr = log_addr
+        self.log_port = log_port
+
+    def run(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        monitor_process = subprocess.Popen(["tcpdump", "--immediate-mode", "-l", "-q", "--direction=in", "-n", "ip"],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        for entry in monitor_process.stdout:
+            current_time = datetime.now()
+            date_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+
+            results = entry.split(" ")
+            size = results[-1]
+            ip = results[2]
+            trimmed_ip = ip[0:ip.rfind(".")]
+
+            if self.src_ip == trimmed_ip:
+                string_to_send = f"{date_time} {self.src_ip} {size}"
+                print(string_to_send)
+                encoded = string_to_send.encode()
+                sock.sendto(bytearray(encoded), (f'{self.log_addr}', int(self.log_port)))
 
 
 class SystemUtils:
@@ -67,8 +98,8 @@ class SystemUtils:
                 app_name = names[0][1]
 
             print("{:<8s} {:<15s} {:<15s} {:<8s} {:}".format(str(pid), str(app_name), str(owner_name), str(vm),
-
                                                              str(uptime)))
+
     def exec(self, command):
         executed_process = subprocess.Popen(command[0].split(" "), stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE, text=True)
@@ -111,6 +142,12 @@ def main():
         sys_utils.exec(args.exec)
     elif args.listen:
         server_mode = True
+
+        if args.monitor:
+            monitor_vals = args.monitor[0].split(":")
+            monitor_thread = MonitorThread(monitor_vals[0], monitor_vals[1], monitor_vals[2])
+            monitor_thread.start()
+
         port = args.listen[0]
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
