@@ -1,3 +1,10 @@
 #!/bin/bash
 
+# -----------------------------------------------------------
+# File:   sysman
+# Author: Andrew Fox  User ID: afox797   Class: CPS 250
+# Desc:   This program launches sysman.py passing through all args.
+# -----------------------------------------------------------
+
+# launch sysman.py
 python3 sysman.py "$@"

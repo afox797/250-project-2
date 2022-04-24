@@ -1,3 +1,11 @@
+# -----------------------------------------------------------
+# File:   sysman.py
+# Author: Andrew Fox  User ID: afox797   Class: CPS 250
+# Desc:   This program displays system information specified by the user.
+#         Also supports a server mode where clients can obtain system info.
+# -----------------------------------------------------------
+
+
 import argparse
 import re
 import subprocess
@@ -9,37 +17,9 @@ from threading import Thread
 from datetime import datetime
 
 
-class MonitorThread(Thread):
-
-    def __init__(self, src_ip, log_addr, log_port):
-        super().__init__()
-        self.src_ip = src_ip
-        self.log_addr = log_addr
-        self.log_port = log_port
-
-    def run(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        monitor_process = subprocess.Popen(["tcpdump", "--immediate-mode", "-l", "-q", "--direction=in", "-n", "ip"],
-                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-        for entry in monitor_process.stdout:
-            current_time = datetime.now()
-            date_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-
-            results = entry.split(" ")
-            size = results[-1]
-            ip = results[2]
-            trimmed_ip = ip[0:ip.rfind(".")]
-
-            if self.src_ip == trimmed_ip:
-                string_to_send = f"{date_time} {self.src_ip} {size}"
-                print(string_to_send)
-                encoded = string_to_send.encode()
-                sock.sendto(bytearray(encoded), (f'{self.log_addr}', int(self.log_port)))
-
-
 class SystemUtils:
 
+    # Displays the amount of users and memory available in kilobytes
     def sys_info(self):
         user_regex = r'\d+(?= user)'
         mem_regex = r"(\bMemAvailable:\s*)(\d+)"
@@ -55,6 +35,8 @@ class SystemUtils:
 
         print("{} users, {} kb available".format(users[0], mem_available[0][1]))
 
+    # Uses information from ps and the /proc directory to display the pid, app name, owner, memory consumed, and
+    # cumulative CPU time for each process.
     def ps(self):
         name_regex = r"(Name:\s*)([a-zA-Z]+)"
 
@@ -100,6 +82,7 @@ class SystemUtils:
             print("{:<8s} {:<15s} {:<15s} {:<8s} {:}".format(str(pid), str(app_name), str(owner_name), str(vm),
                                                              str(uptime)))
 
+    # executes a specified command and displays its output in real time
     def exec(self, command):
         executed_process = subprocess.Popen(command[0].split(" "), stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE, text=True)
@@ -107,6 +90,83 @@ class SystemUtils:
             print(f"{line.strip()}")
 
         executed_process.communicate()
+
+
+class MonitorThread(Thread):
+
+    def __init__(self, src_ip, log_addr, log_port):
+        super().__init__()
+        self.src_ip = src_ip
+        self.log_addr = log_addr
+        self.log_port = log_port
+
+    # monitors tcpdump for matching ip, sends UDP message and prints to stdout if there is a match
+    def run(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        monitor_process = subprocess.Popen(["tcpdump", "--immediate-mode", "-l", "-q", "--direction=in", "-n", "ip"],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        for entry in monitor_process.stdout:
+            current_time = datetime.now()
+            date_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+
+            results = entry.split(" ")
+            size = results[-1]
+            ip = results[2]
+            trimmed_ip = ip[0:ip.rfind(".")]
+
+            if self.src_ip == trimmed_ip:
+                string_to_send = f"{date_time} {self.src_ip} {size}"
+                print(string_to_send)
+                encoded = string_to_send.encode()
+                sock.sendto(bytearray(encoded), (f'{self.log_addr}', int(self.log_port)))
+
+
+class WorkerThread(Thread):
+
+    def __init__(self, worker_sock, caddr):
+        super().__init__()
+        self.worker_sock = worker_sock
+        self.caddr = caddr
+
+    # handles sysman 'Server Mode' for multiple clients
+    def run(self):
+        global num_connections
+        sys_utils = SystemUtils()
+        try:
+            with self.worker_sock.makefile('rw', 1024) as sock_file:
+                sock_file.write("Welcome to sysman 'Server Mode'.\n"
+                                "Commands: SYSINFO, PS, EXEC, QUIT\n")
+                sock_file.flush()
+
+                req = sock_file.readline().strip()
+                while req != "QUIT":
+
+                    if req == "SYSINFO":
+                        with redirect_stdout(sock_file):
+                            sys_utils.sys_info()
+                        sock_file.flush()
+
+                    elif req == "PS":
+                        with redirect_stdout(sock_file):
+                            sys_utils.ps()
+                        sock_file.flush()
+
+                    elif req[0:4] == "EXEC":
+                        raw_command = req[req.index(" ") + 1:len(req)]
+                        command = [f"{raw_command}"]
+                        with redirect_stdout(sock_file):
+                            sys_utils.exec(command)
+                        sock_file.flush()
+
+                    req = sock_file.readline().strip()
+
+        except IOError:
+            print("I/O Error...")
+
+        self.worker_sock.close()
+        num_connections -= 1
+        print(f"Connection from {str(self.caddr)} disconnected.\nClients currently connected: {num_connections}")
 
 
 # Crtl C signal handler
@@ -119,6 +179,8 @@ signal.signal(signal.SIGINT, ctrlc_handler)
 
 
 def main():
+    global num_connections
+
     # Initialize allowed command line arguments
     parser = argparse.ArgumentParser(description='System information utility')
     parser.add_argument('--sysinfo', action='store_true', required=False,
@@ -157,6 +219,9 @@ def main():
         sock.bind(('', port))
         sock.listen(1)
         worker_sock = 0
+
+        num_connections = 0
+
         try:
             while server_mode:
                 if server_mode:
@@ -164,42 +229,13 @@ def main():
                     worker_sock, caddr = sock.accept()
                     print("Connection from: " + str(caddr))
 
-                try:
-                    with worker_sock.makefile('rw', 1024) as sock_file:
-                        sock_file.write("Welcome to sysman 'Server Mode'.\n"
-                                        "Commands: SYSINFO, PS, EXEC, QUIT\n")
-                        sock_file.flush()
-
-                        req = sock_file.readline().strip()
-                        while req != "QUIT":
-
-                            if req == "SYSINFO":
-                                with redirect_stdout(sock_file):
-                                    sys_utils.sys_info()
-                                sock_file.flush()
-
-                            elif req == "PS":
-                                with redirect_stdout(sock_file):
-                                    sys_utils.ps()
-                                sock_file.flush()
-
-                            elif req[0:4] == "EXEC":
-                                raw_command = req[req.index(" ") + 1:len(req)]
-                                command = [f"{raw_command}"]
-                                with redirect_stdout(sock_file):
-                                    sys_utils.exec(command)
-                                sock_file.flush()
-
-                            req = sock_file.readline().strip()
-
-                except IOError:
-                    print("I/O Error...")
-
-                worker_sock.close()
-                server_mode = False
+                    client_thread = WorkerThread(worker_sock, caddr)
+                    client_thread.start()
+                    num_connections += 1
+                    print(f"Clients currently connected: {num_connections}")
 
         finally:
-            print("User closed connection. Shutting down...")
+            print("Shutting down...")
             if worker_sock:
                 worker_sock.close()
             sock.close()
