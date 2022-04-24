@@ -1,6 +1,10 @@
 import argparse
 import re
 import subprocess
+import socket
+import sys
+import signal
+from contextlib import redirect_stdout
 
 
 class SystemUtils:
@@ -21,7 +25,6 @@ class SystemUtils:
         print("{} users, {} kb available".format(users[0], mem_available[0][1]))
 
     def ps(self):
-        vm_regex = r"(\bVmRSS:\s*)(\d+)"
         name_regex = r"(Name:\s*)([a-zA-Z]+)"
 
         ps_process = subprocess.Popen(["ps", "aux"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -64,12 +67,24 @@ class SystemUtils:
                 app_name = names[0][1]
 
             print("{:<8s} {:<15s} {:<15s} {:<8s} {:}".format(str(pid), str(app_name), str(owner_name), str(vm),
+
                                                              str(uptime)))
+    def exec(self, command):
+        executed_process = subprocess.Popen(command[0].split(" "), stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE, text=True)
+        for line in executed_process.stdout:
+            print(f"{line.strip()}")
+
+        executed_process.communicate()
 
 
+# Crtl C signal handler
+def ctrlc_handler(signal, frame):
+    print('Crtl+C detected, shutting down....')
+    sys.exit(0)
 
 
-
+signal.signal(signal.SIGINT, ctrlc_handler)
 
 
 def main():
@@ -78,10 +93,12 @@ def main():
     parser.add_argument('--sysinfo', action='store_true', required=False,
                         help='displays number of users and amount of memory')
     parser.add_argument('--ps', action='store_true', required=False, help='displays a table of running processes')
-    parser.add_argument('--exec', nargs=1, type=str, required=False, dest='command',
+    parser.add_argument('--exec', nargs=1, type=str, required=False,
                         help='executes requested command and displays the result')
-    parser.add_argument('--listen', nargs=1, type=int, required=False, dest='port',
+    parser.add_argument('--listen', nargs=1, type=int, required=False,
                         help='starts the program in server mode, opens a TCP server socket on specified port')
+    parser.add_argument('--monitor', nargs=1, required=False,
+                        help='if the program is in server mode, this will analyze incoming packets')
 
     args = parser.parse_args()
     sys_utils = SystemUtils()
@@ -90,6 +107,65 @@ def main():
         sys_utils.sys_info()
     elif args.ps:
         sys_utils.ps()
+    elif args.exec:
+        sys_utils.exec(args.exec)
+    elif args.listen:
+        server_mode = True
+        port = args.listen[0]
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        sock.bind(('', port))
+        sock.listen(1)
+        worker_sock = 0
+        try:
+            while server_mode:
+                if server_mode:
+                    print(f"Sysman in server mode. Active port: {port} Waiting for connection...")
+                    worker_sock, caddr = sock.accept()
+                    print("Connection from: " + str(caddr))
+
+                try:
+                    with worker_sock.makefile('rw', 1024) as sock_file:
+                        sock_file.write("Welcome to sysman 'Server Mode'.\n"
+                                        "Commands: SYSINFO, PS, EXEC, QUIT\n")
+                        sock_file.flush()
+
+                        req = sock_file.readline().strip()
+                        while req != "QUIT":
+
+                            if req == "SYSINFO":
+                                with redirect_stdout(sock_file):
+                                    sys_utils.sys_info()
+                                sock_file.flush()
+
+                            elif req == "PS":
+                                with redirect_stdout(sock_file):
+                                    sys_utils.ps()
+                                sock_file.flush()
+
+                            elif req[0:4] == "EXEC":
+                                raw_command = req[req.index(" ") + 1:len(req)]
+                                command = [f"{raw_command}"]
+                                with redirect_stdout(sock_file):
+                                    sys_utils.exec(command)
+                                sock_file.flush()
+
+                            req = sock_file.readline().strip()
+
+                except IOError:
+                    print("I/O Error...")
+
+                worker_sock.close()
+                server_mode = False
+
+        finally:
+            print("User closed connection. Shutting down...")
+            if worker_sock:
+                worker_sock.close()
+            sock.close()
 
 
 if __name__ == '__main__':
