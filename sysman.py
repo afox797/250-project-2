@@ -22,18 +22,25 @@ class SystemUtils:
     # Displays the amount of users and memory available in kilobytes
     def sys_info(self):
         user_regex = r'\d+(?= user)'
-        mem_regex = r"(\bMemAvailable:\s*)(\d+)"
 
         top_process = subprocess.Popen(["top", "-n", "1"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         top_output = top_process.communicate()[0]
         users = re.findall(user_regex, top_output)
+        if len(users) >= 1:
+            user_amt = users[0]
+        else:
+            user_amt = 0
+
 
         cat_process = subprocess.Popen(["cat", "/proc/meminfo"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                        text=True)
-        cat_output = cat_process.communicate()[0]
-        mem_available = re.findall(mem_regex, cat_output)
+        mem_process = subprocess.Popen(["awk", "{print $2}"], stdin=cat_process.stdout, stderr=subprocess.PIPE,
+                                       stdout=subprocess.PIPE, text=True)
+        cat_process.wait()
+        mem_output = mem_process.communicate()[0]
+        mem = mem_output.split("\n")
 
-        print("{} users, {} kb available".format(users[0], mem_available[0][1]))
+        print("{} users, {} kb available".format(user_amt, mem[2]))
 
     # Uses information from ps and the /proc directory to display the pid, app name, owner, memory consumed, and
     # cumulative CPU time for each process.
