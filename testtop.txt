@@ -1,51 +1,57 @@
-MemTotal:       15734072 kB
-MemFree:         4979896 kB
-MemAvailable:    8182792 kB
-Buffers:          142504 kB
-Cached:          3471948 kB
-SwapCached:            0 kB
-Active:          1101756 kB
-Inactive:        8860284 kB
-Active(anon):      22052 kB
-Inactive(anon):  6559760 kB
-Active(file):    1079704 kB
-Inactive(file):  2300524 kB
-Unevictable:          96 kB
-Mlocked:              96 kB
-SwapTotal:       8000508 kB
-SwapFree:        8000508 kB
-Dirty:              2544 kB
-Writeback:             0 kB
-AnonPages:       6339772 kB
-Mapped:          1811796 kB
-Shmem:            234224 kB
-KReclaimable:     145552 kB
-Slab:             306868 kB
-SReclaimable:     145552 kB
-SUnreclaim:       161316 kB
-KernelStack:       26480 kB
-PageTables:        70468 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:    15867544 kB
-Committed_AS:   19546900 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:      102928 kB
-VmallocChunk:          0 kB
-Percpu:            12608 kB
-HardwareCorrupted:     0 kB
-AnonHugePages:         0 kB
-ShmemHugePages:        0 kB
-ShmemPmdMapped:        0 kB
-FileHugePages:         0 kB
-FilePmdMapped:         0 kB
-HugePages_Total:       0
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-Hugetlb:               0 kB
-DirectMap4k:      691916 kB
-DirectMap2M:    13330432 kB
-DirectMap1G:     3145728 kB
+Name:	chrome
+Umask:	0002
+State:	S (sleeping)
+Tgid:	21044
+Ngid:	0
+Pid:	21044
+PPid:	14679
+TracerPid:	0
+Uid:	1000	1000	1000	1000
+Gid:	1000	1000	1000	1000
+FDSize:	128
+Groups:	4 24 27 30 46 114 134 1000 
+NStgid:	21044	3850	1
+NSpid:	21044	3850	1
+NSpgid:	1283	0	0
+NSsid:	1283	0	0
+VmPeak:	1166739464 kB
+VmSize:	1162383924 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	  304148 kB
+VmRSS:	  292960 kB
+RssAnon:	  183180 kB
+RssFile:	  105132 kB
+RssShmem:	    4648 kB
+VmData:	  429500 kB
+VmStk:	     152 kB
+VmExe:	  140456 kB
+VmLib:	   30296 kB
+VmPTE:	    1376 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	1
+Threads:	15
+SigQ:	1/61003
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000000000
+SigIgn:	0000000000001002
+SigCgt:	00000001c1814efd
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	1
+Seccomp:	2
+Seccomp_filters:	1
+Speculation_Store_Bypass:	thread vulnerable
+SpeculationIndirectBranch:	conditional force disabled
+Cpus_allowed:	ffff
+Cpus_allowed_list:	0-15
+Mems_allowed:	00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	10603
+nonvoluntary_ctxt_switches:	1511
